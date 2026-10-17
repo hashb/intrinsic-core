@@ -83,6 +83,9 @@ ABSL_FLAG(std::string, intrinsic_root, "",
           "workspace when started with `bazel run`.");
 ABSL_FLAG(double, viz_dt, 1.0 / 30.0,
           "Sampling period [s] of the exported animation frames.");
+ABSL_FLAG(double, timeout_s, 30.0,
+          "Planning timeout for motions whose motion_planner_config does not "
+          "set timeout_sec (0: planner default, which may never time out).");
 ABSL_FLAG(bool, print_objects, false,
           "Print the objects and frames of the loaded world (the names to use "
           "in motion specifications) and exit.");
@@ -485,7 +488,13 @@ absl::Status Run() {
   json motions = json::array();
   int failures = 0;
   for (int i = 0; i < scenario.motions_size(); ++i) {
-    const Motion& motion = scenario.motions(i);
+    Motion motion = scenario.motions(i);
+    if (const double timeout = absl::GetFlag(FLAGS_timeout_s);
+        timeout > 0 && !motion.motion_planner_config().has_timeout_sec()) {
+      auto* t = motion.mutable_motion_planner_config()->mutable_timeout_sec();
+      t->set_seconds(static_cast<int64_t>(timeout));
+      t->set_nanos(static_cast<int32_t>((timeout - t->seconds()) * 1e9));
+    }
     const std::string name = motion.name().empty() ? absl::StrCat("motion_", i) : motion.name();
     INTR_RETURN_IF_ERROR(robot->SetJointPositions(q_current));
     json m = {{"name", name}, {"start", VectorJson(q_current)}};

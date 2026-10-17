@@ -129,9 +129,12 @@ motions {
   }
 }
 
-# Joint-space move to above the place table; the wall is in the way.
+# Move to above the place table; the wall is in the way and the box has to
+# stay upright.
 motions {
   name: "transfer"
+  # Constrained planning can search for a long time; fail after 10 s.
+  motion_planner_config { timeout_sec { seconds: 10 } }
   motion_specification {
     motion_segments {
       motion_type: ANY
@@ -151,6 +154,18 @@ motions {
           collision_action { is_excluded: true }
           left { object { by_name { object_name: "my_robot" } } }
           right { object { by_name { object_name: "box" } } }
+        }
+      }
+      # Keep the box upright: the flange z axis must stay within 30 deg of
+      # straight down (world -z) along the whole path. (15 deg is too tight
+      # to get the box over this wall; the planner times out.)
+      path_constraints {
+        rotation_cone {
+          moving_frame { by_name { frame { object_name: "my_robot" frame_name: "flange" } } }
+          target_frame { by_name { object { object_name: "root" } } }
+          moving_axis { x: 0 y: 0 z: 1 }
+          target_axis { x: 0 y: 0 z: -1 }
+          cone_opening_half_angle: 0.5236  # 30 deg
         }
       }
     }

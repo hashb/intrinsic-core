@@ -30,6 +30,7 @@ Useful flags for `plan_scenario`:
 * `--stderrthreshold=0`: show the planner's INFO logs (planning stages, timing).
 * `--v=1`: also log the duration of each `ScopedSpan`
   (`MotionPlanner/PlanPathImpl`, `RrtConnectPathPlanner/Plan`, ...).
+* `--timeout_s`: planning timeout for motions that don't set one.
 * `--path_refinement_validation`, `--fallback_trajectory` and
   `--collision_threads`: planner flags (defaults match the production service).
 * `-c dbg` / `--config=dbg` on the `bazel run` line builds a debuggable binary.
@@ -72,6 +73,13 @@ motions { name: "release" detach { object: "box" } }   # box stays where it is
 * `attach` reparents an object onto the robot's last link (or the final entity
   of `parent`), keeping its world pose. From then on it's collision checked as
   part of the moving robot. `detach` reparents it to `root`.
+* Path constraints: `motion_segments.path_constraints` holds along the whole
+  segment, e.g. `rotation_cone` (tool axis within a cone, "pointing down
+  within N degrees"), `position_bounding_box`, `point_at`, or an intersection
+  of these. The planner then uses numerical IK and constrained RRT, which is
+  much slower and can search indefinitely for infeasible problems. That's why
+  `--timeout_s` (default 30 s) applies to motions without
+  `motion_planner_config.timeout_sec`.
 * Intended contacts, like the flange touching a grasped part or a part sitting
   on a table, are excluded per segment with `collision_settings.collision_rules`
   (`collision_action { is_excluded: true }`).
@@ -83,9 +91,9 @@ Examples:
 * `scenarios/ur5e_pillar.textproto`: a pillar blocks the direct path, so
   `motion_type: ANY` has to plan around it. With `JOINT` it fails as expected.
 * `scenarios/ur5e_pick_place.textproto`: pick and place over a wall in 9 steps.
-  Move to pre-grasp, linear approach, attach, linear retract, joint-space
-  transfer (goes over the wall with the box attached), linear approach, detach,
-  linear retract, home.
+  Move to pre-grasp, linear approach, attach, linear retract, transfer over the
+  wall with the box attached and kept within 30° of upright (a `rotation_cone`
+  path constraint), linear approach, detach, linear retract, home.
 
 ## How the build works
 
