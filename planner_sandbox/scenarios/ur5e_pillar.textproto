@@ -1,0 +1,49 @@
+# proto-file: planner/scenario.proto
+# proto-message: planner_sandbox.Scenario
+#
+# Same robot and goal as ur5e_basic's joint_move, but a pillar blocks the
+# direct joint-space path. With `motion_type: JOINT` (pure joint interpolation)
+# planning fails; `ANY` (the default) runs the sampling-based pipeline and finds
+# a way around it.
+
+scene {
+  sdf: "ur5e_pillar.sdf"
+  generate_group_ids: true
+  world_updates_files: "../../intrinsic/skills/apps/test_data/ur5e_world_updates.pbtxt"
+}
+
+robot: "my_robot"
+start_joint_positions: [1.27778, -1.58980, 1.81571, -1.78568, -1.57508, -0.28733]
+
+motions {
+  name: "around_pillar"
+  motion_specification {
+    motion_segments {
+      motion_type: ANY
+      target { joint_position { joints: [-0.5, -1.2, 1.6, -1.9, -1.57, 0.3] } }
+    }
+  }
+}
+
+motions {
+  name: "back_to_start"
+  motion_specification {
+    motion_segments {
+      target {
+        joint_position {
+          joints: [1.27778, -1.58980, 1.81571, -1.78568, -1.57508, -0.28733]
+        }
+      }
+    }
+  }
+}
+
+motions {
+  name: "linear_past_pillar"
+  motion_specification {
+    motion_segments {
+      motion_type: LINEAR
+      target { joint_position { joints: [-0.5, -1.2, 1.6, -1.9, -1.57, 0.3] } }
+    }
+  }
+}

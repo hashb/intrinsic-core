@@ -1,0 +1,51 @@
+--- a/intrinsic/util/status/get_extended_status.h
++++ b/intrinsic/util/status/get_extended_status.h
+@@ -20,7 +20,6 @@
+ #include "absl/status/status.h"
+ #include "absl/status/statusor.h"
+ #include "google/rpc/status.pb.h"
+-#include "grpcpp/support/status.h"
+ #include "intrinsic/util/status/extended_status.pb.h"
+ 
+ namespace intrinsic {
+@@ -35,9 +34,6 @@
+ }
+ 
+ std::optional<intrinsic_proto::status::ExtendedStatus> GetExtendedStatus(
+-    const grpc::Status& status);
+-
+-std::optional<intrinsic_proto::status::ExtendedStatus> GetExtendedStatus(
+     const google::rpc::Status& status);
+ 
+ }  // namespace intrinsic
+--- a/intrinsic/util/status/get_extended_status.cc
++++ b/intrinsic/util/status/get_extended_status.cc
+@@ -24,7 +24,6 @@
+ #include "google/protobuf/any.pb.h"
+ #include "google/rpc/code.pb.h"
+ #include "google/rpc/status.pb.h"
+-#include "grpcpp/support/status.h"
+ #include "intrinsic/util/proto/type_url.h"
+ #include "intrinsic/util/status/extended_status.pb.h"
+ 
+@@ -69,20 +68,4 @@
+   return extended_status;
+ }
+ 
+-std::optional<intrinsic_proto::status::ExtendedStatus> GetExtendedStatus(
+-    const grpc::Status& status) {
+-  if (status.ok()) return std::nullopt;
+-
+-  if (status.error_details().empty()) {
+-    return std::nullopt;
+-  }
+-
+-  google::rpc::Status rpc_status;
+-  if (!rpc_status.ParseFromString(status.error_details())) {
+-    return std::nullopt;
+-  }
+-
+-  return GetExtendedStatus(rpc_status);
+-}
+-
+ }  // namespace intrinsic

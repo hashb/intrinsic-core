@@ -1,0 +1,126 @@
+--- a/intrinsic/icon/utils/log_internal.cc
++++ b/intrinsic/icon/utils/log_internal.cc
+@@ -14,7 +14,7 @@
+ 
+ #include "intrinsic/icon/utils/log_internal.h"
+ 
+-#include <bits/time.h>
++#include <time.h>
+ #include <ctype.h>
+ #include <strings.h>
+ #include <time.h>
+--- a/intrinsic/icon/utils/realtime_log_sink.cc
++++ b/intrinsic/icon/utils/realtime_log_sink.cc
+@@ -55,7 +55,9 @@
+                  << std::strerror(errnum);
+     }
+     // Must be at most 16 characters.
++#if !defined(__APPLE__)  // macOS can only name the calling thread.
+     pthread_setname_np(reader_thread_.native_handle(), "GlobalLogSink");
++#endif
+     reader_thread_started_.WaitForNotification();
+   }
+ 
+--- a/intrinsic/icon/interprocess/binary_futex.cc
++++ b/intrinsic/icon/interprocess/binary_futex.cc
+@@ -14,8 +14,12 @@
+ 
+ #include "intrinsic/icon/interprocess/binary_futex.h"
+ 
++#if defined(__APPLE__)
++#include <os/os_sync_wait_on_address.h>
++#else
+ #include <linux/futex.h>
+ #include <sys/syscall.h>
++#endif
+ 
+ #include <atomic>
+ #include <cerrno>
+@@ -34,6 +38,44 @@
+ namespace intrinsic::icon {
+ namespace {
+ 
++#if defined(__APPLE__)
++// Minimal emulation of the two futex operations used below on top of macOS'
++// os_sync_wait_on_address (macOS 14.4+). `timeout` is an absolute
++// CLOCK_REALTIME deadline, as for FUTEX_WAIT_BITSET | FUTEX_CLOCK_REALTIME.
++constexpr int FUTEX_WAKE = 1;
++constexpr int FUTEX_WAIT_BITSET = 9;
++constexpr int FUTEX_CLOCK_REALTIME = 256;
++
++inline int64_t futex(std::atomic<uint32_t>* uaddr, int futex_op, uint32_t val,
++                     bool private_futex,
++                     const struct timespec* timeout = nullptr) {
++  void* addr = static_cast<void*>(uaddr);
++  if ((futex_op & ~FUTEX_CLOCK_REALTIME) == FUTEX_WAKE) {
++    const os_sync_wake_by_address_flags_t flags =
++        private_futex ? OS_SYNC_WAKE_BY_ADDRESS_NONE
++                      : OS_SYNC_WAKE_BY_ADDRESS_SHARED;
++    int ret = val == 1 ? os_sync_wake_by_address_any(addr, sizeof(*uaddr), flags)
++                       : os_sync_wake_by_address_all(addr, sizeof(*uaddr), flags);
++    // No waiter is not an error for futex(FUTEX_WAKE).
++    return (ret == -1 && errno == ENOENT) ? 0 : ret;
++  }
++  const os_sync_wait_on_address_flags_t flags =
++      private_futex ? OS_SYNC_WAIT_ON_ADDRESS_NONE
++                    : OS_SYNC_WAIT_ON_ADDRESS_SHARED;
++  if (timeout == nullptr) {
++    return os_sync_wait_on_address(addr, val, sizeof(*uaddr), flags);
++  }
++  const absl::Duration remaining =
++      absl::TimeFromTimespec(*timeout) - absl::Now();
++  if (remaining <= absl::ZeroDuration()) {
++    errno = ETIMEDOUT;
++    return -1;
++  }
++  return os_sync_wait_on_address_with_timeout(
++      addr, val, sizeof(*uaddr), flags, OS_CLOCK_MACH_ABSOLUTE_TIME,
++      static_cast<uint64_t>(absl::ToInt64Nanoseconds(remaining)));
++}
++#else
+ inline int64_t futex(std::atomic<uint32_t>* uaddr, int futex_op, uint32_t val,
+                      bool private_futex,
+                      const struct timespec* timeout = nullptr,
+@@ -53,6 +95,7 @@
+   return syscall(SYS_futex, uaddr, futex_op, val, timeout, uaddr2,
+                  FUTEX_BITSET_MATCH_ANY);
+ }
++#endif
+ 
+ // Atomically reads from `val` and sets `val` to kReady *if* it was kPosted.
+ //
+--- a/intrinsic/util/path_resolver/path_resolver.cc
++++ b/intrinsic/util/path_resolver/path_resolver.cc
+@@ -28,6 +28,19 @@
+ #include "absl/strings/strip.h"  
+ #include "ortools/base/path.h"
+ #include "tools/cpp/runfiles/runfiles.h"
++
++#if defined(__APPLE__)
++#include <mach-o/dyld.h>
++
++namespace {
++// glibc's program_invocation_name: the path this binary was invoked with.
++const char* const program_invocation_name = [] {
++  static char path[4096];
++  uint32_t size = sizeof(path);
++  return _NSGetExecutablePath(path, &size) == 0 ? path : getprogname();
++}();
++}  // namespace
++#endif
+ 
+ namespace intrinsic {
+ 
+--- a/intrinsic/world/gzfile/gzfile.cc
++++ b/intrinsic/world/gzfile/gzfile.cc
+@@ -46,6 +46,10 @@
+ #include "ortools/base/path.h"
+ #include "zip.h"
+ #include "zipconf.h"
++
++#ifndef ENOKEY  // Linux-only errno.
++#define ENOKEY EACCES
++#endif
+ 
+ ABSL_FLAG(std::string, gzfile_tmpdir, "",
+           "Directory for temporary files. Default: next to output file.");
