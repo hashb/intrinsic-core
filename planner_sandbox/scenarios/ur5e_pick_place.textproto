@@ -1,0 +1,247 @@
+# proto-file: planner/scenario.proto
+# proto-message: planner_sandbox.Scenario
+#
+# Pick and place with a UR5e: approach the box linearly, attach it, retract,
+# move in joint space over/around the wall to the place table, approach,
+# detach and retract.
+#
+# There is no gripper model, so the flange touches the box top when grasping.
+# Contacts that are intended (flange-box, box-table while picking/placing) are
+# excluded per segment with collision_rules; everything else is checked,
+# including the attached box against the wall during the transfer.
+
+scene {
+  sdf: "ur5e_pick_place.sdf"
+  generate_group_ids: true
+  world_updates_files: "../../intrinsic/skills/apps/test_data/ur5e_world_updates.pbtxt"
+  world_updates {
+    updates {
+      set_object_names {
+        models_to_objects { sdf_model_name: "pick_table" object_name: "pick_table" }
+        models_to_objects { sdf_model_name: "place_table" object_name: "place_table" }
+        models_to_objects { sdf_model_name: "wall" object_name: "wall" }
+        models_to_objects { sdf_model_name: "box" object_name: "box" }
+      }
+    }
+  }
+}
+
+robot: "my_robot"
+start_joint_positions: [0.0, -1.57, 1.57, -1.57, -1.57, 0.0]
+
+# Collision-free move above the box.
+motions {
+  name: "to_pre_grasp"
+  motion_specification {
+    motion_segments {
+      motion_type: ANY
+      target {
+        cartesian_pose {
+          moving_frame { by_name { frame { object_name: "my_robot" frame_name: "flange" } } }
+          target_frame { by_name { object { object_name: "root" } } }
+          # Flange pointing down (180 deg about x).
+          target_frame_offset {
+            position { x: 0.45 y: 0.3 z: 0.3 }
+            orientation { x: 1 y: 0 z: 0 w: 0 }
+          }
+        }
+      }
+    }
+  }
+}
+
+# Straight down onto the box.
+motions {
+  name: "approach_pick"
+  motion_specification {
+    motion_segments {
+      motion_type: LINEAR
+      target {
+        cartesian_pose {
+          moving_frame { by_name { frame { object_name: "my_robot" frame_name: "flange" } } }
+          target_frame { by_name { object { object_name: "root" } } }
+          # Flange pointing down (180 deg about x).
+          target_frame_offset {
+            position { x: 0.45 y: 0.3 z: 0.16 }
+            orientation { x: 1 y: 0 z: 0 w: 0 }
+          }
+        }
+      }
+      collision_settings {
+        collision_rules {
+          collision_action { is_excluded: true }
+          left { object { by_name { object_name: "my_robot" } } }
+          right { object { by_name { object_name: "box" } } }
+        }
+      }
+      cartesian_limits {
+        max_translational_velocity: 0.25
+        max_translational_acceleration: 1.0
+        max_rotational_velocity: 1.0
+        max_rotational_acceleration: 3.0
+      }
+    }
+  }
+}
+
+# Grasp: from here on the box moves with (and is checked as part of) the robot.
+motions {
+  name: "attach_box"
+  attach { object: "box" }
+}
+
+# Lift the box off the pick table.
+motions {
+  name: "retract_pick"
+  motion_specification {
+    motion_segments {
+      motion_type: LINEAR
+      target {
+        cartesian_pose {
+          moving_frame { by_name { frame { object_name: "my_robot" frame_name: "flange" } } }
+          target_frame { by_name { object { object_name: "root" } } }
+          # Flange pointing down (180 deg about x).
+          target_frame_offset {
+            position { x: 0.45 y: 0.3 z: 0.3 }
+            orientation { x: 1 y: 0 z: 0 w: 0 }
+          }
+        }
+      }
+      collision_settings {
+        collision_rules {
+          collision_action { is_excluded: true }
+          left { object { by_name { object_name: "my_robot" } } }
+          right { object { by_name { object_name: "box" } } }
+        }
+        collision_rules {
+          collision_action { is_excluded: true }
+          left { object { by_name { object_name: "box" } } }
+          right { object { by_name { object_name: "pick_table" } } }
+        }
+      }
+      cartesian_limits {
+        max_translational_velocity: 0.25
+        max_translational_acceleration: 1.0
+        max_rotational_velocity: 1.0
+        max_rotational_acceleration: 3.0
+      }
+    }
+  }
+}
+
+# Joint-space move to above the place table; the wall is in the way.
+motions {
+  name: "transfer"
+  motion_specification {
+    motion_segments {
+      motion_type: ANY
+      target {
+        cartesian_pose {
+          moving_frame { by_name { frame { object_name: "my_robot" frame_name: "flange" } } }
+          target_frame { by_name { object { object_name: "root" } } }
+          # Flange pointing down (180 deg about x).
+          target_frame_offset {
+            position { x: 0.45 y: -0.4 z: 0.3 }
+            orientation { x: 1 y: 0 z: 0 w: 0 }
+          }
+        }
+      }
+      collision_settings {
+        collision_rules {
+          collision_action { is_excluded: true }
+          left { object { by_name { object_name: "my_robot" } } }
+          right { object { by_name { object_name: "box" } } }
+        }
+      }
+    }
+  }
+}
+
+# Straight down onto the place table.
+motions {
+  name: "approach_place"
+  motion_specification {
+    motion_segments {
+      motion_type: LINEAR
+      target {
+        cartesian_pose {
+          moving_frame { by_name { frame { object_name: "my_robot" frame_name: "flange" } } }
+          target_frame { by_name { object { object_name: "root" } } }
+          # Flange pointing down (180 deg about x).
+          target_frame_offset {
+            position { x: 0.45 y: -0.4 z: 0.16 }
+            orientation { x: 1 y: 0 z: 0 w: 0 }
+          }
+        }
+      }
+      collision_settings {
+        collision_rules {
+          collision_action { is_excluded: true }
+          left { object { by_name { object_name: "my_robot" } } }
+          right { object { by_name { object_name: "box" } } }
+        }
+        collision_rules {
+          collision_action { is_excluded: true }
+          left { object { by_name { object_name: "box" } } }
+          right { object { by_name { object_name: "place_table" } } }
+        }
+      }
+      cartesian_limits {
+        max_translational_velocity: 0.25
+        max_translational_acceleration: 1.0
+        max_rotational_velocity: 1.0
+        max_rotational_acceleration: 3.0
+      }
+    }
+  }
+}
+
+# Release: the box stays on the place table.
+motions {
+  name: "detach_box"
+  detach { object: "box" }
+}
+
+# Move up away from the box.
+motions {
+  name: "retract_place"
+  motion_specification {
+    motion_segments {
+      motion_type: LINEAR
+      target {
+        cartesian_pose {
+          moving_frame { by_name { frame { object_name: "my_robot" frame_name: "flange" } } }
+          target_frame { by_name { object { object_name: "root" } } }
+          # Flange pointing down (180 deg about x).
+          target_frame_offset {
+            position { x: 0.45 y: -0.4 z: 0.3 }
+            orientation { x: 1 y: 0 z: 0 w: 0 }
+          }
+        }
+      }
+      collision_settings {
+        collision_rules {
+          collision_action { is_excluded: true }
+          left { object { by_name { object_name: "my_robot" } } }
+          right { object { by_name { object_name: "box" } } }
+        }
+      }
+      cartesian_limits {
+        max_translational_velocity: 0.25
+        max_translational_acceleration: 1.0
+        max_rotational_velocity: 1.0
+        max_rotational_acceleration: 3.0
+      }
+    }
+  }
+}
+
+# Back to the start configuration.
+motions {
+  name: "home"
+  motion_specification {
+    motion_segments {
+      target { joint_position { joints: [0.0, -1.57, 1.57, -1.57, -1.57, 0.0] } }
+    }
+  }
+}

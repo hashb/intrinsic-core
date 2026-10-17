@@ -83,6 +83,9 @@ ABSL_FLAG(std::string, intrinsic_root, "",
           "workspace when started with `bazel run`.");
 ABSL_FLAG(double, viz_dt, 1.0 / 30.0,
           "Sampling period [s] of the exported animation frames.");
+ABSL_FLAG(bool, print_objects, false,
+          "Print the objects and frames of the loaded world (the names to use "
+          "in motion specifications) and exit.");
 ABSL_FLAG(bool, export_collision_geometry, true,
           "Also export collision geometry (toggleable in the viewer).");
 
@@ -351,6 +354,39 @@ absl::StatusOr<std::vector<Node>> ExportGeometry(World& world, const fs::path& o
   return nodes;
 }
 
+void PrintObjects(const intrinsic::object_world::ObjectWorld& object_world) {
+  for (const intrinsic::object_world::WorldObject* object :
+       object_world.GetObjectsSorted()) {
+    std::cout << object->GetName().value() << "\n";
+    for (const intrinsic::object_world::Frame* frame : object->GetFramesSorted()) {
+      std::cout << "  frame: " << frame->GetName().value() << "\n";
+    }
+  }
+  std::cout << std::flush;
+}
+
+absl::Status AttachOrDetach(intrinsic::object_world::ObjectWorld& object_world,
+                            const std::string& robot, const Motion& motion) {
+  using ::intrinsic::WorldObjectName;
+  if (motion.has_attach()) {
+    const AttachObject& a = motion.attach();
+    INTR_ASSIGN_OR_RETURN(auto* object,
+                          object_world.GetObject(WorldObjectName(a.object())));
+    INTR_ASSIGN_OR_RETURN(
+        auto* parent,
+        object_world.GetObject(WorldObjectName(a.parent().empty() ? robot : a.parent())));
+    return object->ReparentToFinalEntityOf(*parent);
+  }
+  const DetachObject& d = motion.detach();
+  INTR_ASSIGN_OR_RETURN(auto* object,
+                        object_world.GetObject(WorldObjectName(d.object())));
+  INTR_ASSIGN_OR_RETURN(
+      auto* parent,
+      d.parent().empty() ? object_world.GetObject(intrinsic::RootObjectName())
+                         : object_world.GetObject(WorldObjectName(d.parent())));
+  return object->ReparentTo(*parent);
+}
+
 intrinsic::MotionPlannerFlags PlannerFlags() {
   intrinsic::MotionPlannerFlags flags;
   flags.enable_path_refinement_validation_step =
@@ -416,6 +452,10 @@ absl::Status Run() {
 
   INTR_ASSIGN_OR_RETURN(auto object_world,
                         intrinsic::object_world::ObjectWorld::CreateView(world));
+  if (absl::GetFlag(FLAGS_print_objects)) {
+    PrintObjects(*object_world);
+    return absl::OkStatus();
+  }
   INTR_ASSIGN_OR_RETURN(
       intrinsic::object_world::KinematicObject * robot,
       object_world->GetKinematicObject(intrinsic::WorldObjectName(scenario.robot())));
@@ -453,7 +493,17 @@ absl::Status Run() {
     std::vector<double> times;
     std::vector<VectorXd> configs;
     absl::Time start = absl::Now();
-    if (motion.path_only()) {
+    if (motion.has_attach() || motion.has_detach()) {
+      const absl::Status status = AttachOrDetach(*object_world, scenario.robot(), motion);
+      m["action"] = motion.has_attach() ? "attach" : "detach";
+      m["object"] = motion.has_attach() ? motion.attach().object()
+                                        : motion.detach().object();
+      m["planning_time_s"] = 0.0;
+      m["ok"] = status.ok();
+      if (!status.ok()) m["status"] = status.ToString();
+      times = {0.0};
+      configs = {q_current};
+    } else if (motion.path_only()) {
       auto result = planner->PlanPath(*object_world, robot_spec,
                                       motion.motion_specification(),
                                       motion.motion_planner_config(), std::nullopt);
@@ -518,8 +568,14 @@ absl::Status Run() {
     }
 
     if (m["ok"].get<bool>()) {
-      std::cout << absl::StrFormat("[ OK ] %-28s planned in %7.3f s", name,
-                                   m["planning_time_s"].get<double>());
+      if (m.contains("action")) {
+        std::cout << absl::StrFormat("[ OK ] %-28s %sed '%s'", name,
+                                     m["action"].get<std::string>(),
+                                     m["object"].get<std::string>());
+      } else {
+        std::cout << absl::StrFormat("[ OK ] %-28s planned in %7.3f s", name,
+                                     m["planning_time_s"].get<double>());
+      }
       if (m.contains("duration_s")) {
         std::cout << absl::StrFormat(", duration %6.3f s", m["duration_s"].get<double>());
       }

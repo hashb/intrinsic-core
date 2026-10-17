@@ -291,6 +291,9 @@ class Viewer:
       result = "ok" if m["ok"] else "**failed**"
       if m.get("fallback_stage"):
         result += f" (fallback {m['fallback_stage']})"
+      if "action" in m:
+        rows.append(f"| {m['name']} | {m['action']} `{m['object']}` | | |")
+        continue
       rows.append(
           f"| {m['name']} | {result} | {1e3 * m['planning_time_s']:.1f} |"
           f" {m.get('duration_s', float('nan')):.3f} |"

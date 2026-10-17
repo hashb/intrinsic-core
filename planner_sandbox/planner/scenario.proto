@@ -44,6 +44,26 @@ message Scene {
   intrinsic_proto.world.WorldUpdates world_updates = 6;
 }
 
+// Makes `object` move with `parent` from now on, keeping its world pose. The
+// attached object is collision checked as part of the moving robot.
+message AttachObject {
+  string object = 1;
+
+  // Attached to the final entity of this object (for a robot: its last link).
+  // Defaults to the scenario robot.
+  string parent = 2;
+}
+
+// Reparents `object` to `parent`, keeping its world pose.
+message DetachObject {
+  string object = 1;
+
+  // Defaults to "root" (the world).
+  string parent = 2;
+}
+
+// One entry of a scenario: either a planned motion or, if `attach` or `detach`
+// is set, an instantaneous change of the scene (e.g. grasp or release).
 message Motion {
   string name = 1;
 
@@ -55,6 +75,9 @@ message Motion {
 
   // Only run path planning (MotionPlanner::PlanPath), no trajectory.
   bool path_only = 4;
+
+  AttachObject attach = 5;
+  DetachObject detach = 6;
 }
 
 message Scenario {
@@ -70,6 +93,6 @@ message Scenario {
   intrinsic_proto.motion_planning.v1.RobotSpecification robot_specification =
       4;
 
-  // Planned in order. Each motion starts where the previous one ended.
+  // Executed in order. Each motion starts where the previous one ended.
   repeated Motion motions = 5;
 }

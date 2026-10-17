@@ -53,6 +53,8 @@ motions {
   motion_planner_config { ... }        # optional MotionPlannerConfiguration
   path_only: false                     # true: PlanPath only (no trajectory)
 }
+motions { name: "grasp"   attach { object: "box" } }   # box now moves with the robot
+motions { name: "release" detach { object: "box" } }   # box stays where it is
 ```
 
 * Relative paths are relative to the scenario file.
@@ -61,8 +63,18 @@ motions {
   So `model://intrinsic/robot_definitions/ur/ur5e` and the assets under
   `intrinsic/models` work as-is.
 * The world updates set things the planner needs: the robot tip, IK solver key,
-  self-collision exclusions, and the object name. See
-  `intrinsic/skills/apps/test_data/ur5e_world_updates.pbtxt`.
+  self-collision exclusions, and object names. See
+  `intrinsic/skills/apps/test_data/ur5e_world_updates.pbtxt`. SDF models only
+  become objects (usable in attach/detach and collision rules) once they're
+  named with `set_object_names`.
+* `--print_objects` lists the loaded objects and their frames: the names to
+  use in motion targets and collision rules.
+* `attach` reparents an object onto the robot's last link (or the final entity
+  of `parent`), keeping its world pose. From then on it's collision checked as
+  part of the moving robot. `detach` reparents it to `root`.
+* Intended contacts, like the flange touching a grasped part or a part sitting
+  on a table, are excluded per segment with `collision_settings.collision_rules`
+  (`collision_action { is_excluded: true }`).
 
 Examples:
 
@@ -70,6 +82,10 @@ Examples:
   move, then a linear Cartesian move.
 * `scenarios/ur5e_pillar.textproto`: a pillar blocks the direct path, so
   `motion_type: ANY` has to plan around it. With `JOINT` it fails as expected.
+* `scenarios/ur5e_pick_place.textproto`: pick and place over a wall in 9 steps.
+  Move to pre-grasp, linear approach, attach, linear retract, joint-space
+  transfer (goes over the wall with the box attached), linear approach, detach,
+  linear retract, home.
 
 ## How the build works
 
