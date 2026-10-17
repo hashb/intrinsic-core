@@ -38,7 +38,7 @@ limitations under the License.
     </model>
     <model name="place_table">
       <static>true</static>
-      <pose>0.45 -0.40 0.05 0 0 0</pose>
+      <pose>0.35 -0.45 0.05 0 0 0</pose>
       <link name="link">
         <visual name="visual">
           <geometry><box><size>0.30 0.30 0.10</size></box></geometry>

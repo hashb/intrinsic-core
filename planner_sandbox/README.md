@@ -92,8 +92,11 @@ Examples:
   `motion_type: ANY` has to plan around it. With `JOINT` it fails as expected.
 * `scenarios/ur5e_pick_place.textproto`: pick and place over a wall in 9 steps.
   Move to pre-grasp, linear approach, attach, linear retract, transfer over the
-  wall with the box attached and kept within 30° of upright (a `rotation_cone`
-  path constraint), linear approach, detach, linear retract, home.
+  wall with the box attached and kept within 15° of upright (a `rotation_cone`
+  path constraint), linear approach, detach, linear retract, home. The place
+  pose is chosen so the transfer stays in the pick's arm configuration. With
+  the table further out, the upper arm hits the wall in that configuration,
+  and switching shoulder/elbow branches isn't possible under a tight cone.
 
 ## How the build works
 
