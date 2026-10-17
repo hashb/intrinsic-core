@@ -259,12 +259,23 @@ motions {
   }
 }
 
-# Back to the start configuration.
+# Back above the pick table, ready for the next cycle.
 motions {
-  name: "home"
+  name: "back_to_pre_grasp"
   motion_specification {
     motion_segments {
-      target { joint_position { joints: [0.0, -1.57, 1.57, -1.57, -1.57, 0.0] } }
+      motion_type: ANY
+      target {
+        cartesian_pose {
+          moving_frame { by_name { frame { object_name: "my_robot" frame_name: "flange" } } }
+          target_frame { by_name { object { object_name: "root" } } }
+          # Same pose as to_pre_grasp.
+          target_frame_offset {
+            position { x: 0.45 y: 0.3 z: 0.3 }
+            orientation { x: 1 y: 0 z: 0 w: 0 }
+          }
+        }
+      }
     }
   }
 }
