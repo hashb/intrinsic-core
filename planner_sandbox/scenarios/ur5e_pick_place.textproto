@@ -27,7 +27,9 @@ scene {
 }
 
 robot: "my_robot"
-start_joint_positions: [0.0, -1.57, 1.57, -1.57, -1.57, 0.0]
+# Home: flange pointing down at (0.10, -0.45, 0.30), between the robot base and
+# the place table, in the same elbow-up configuration as the pick and place.
+start_joint_positions: [-1.6455, -1.5771, 2.0767, -2.0704, -1.5708, 1.4961]
 
 # Collision-free move above the box.
 motions {
@@ -259,12 +261,12 @@ motions {
   }
 }
 
-# Back to the start configuration.
+# Back to home (the start configuration).
 motions {
   name: "home"
   motion_specification {
     motion_segments {
-      target { joint_position { joints: [0.0, -1.57, 1.57, -1.57, -1.57, 0.0] } }
+      target { joint_position { joints: [-1.6455, -1.5771, 2.0767, -2.0704, -1.5708, 1.4961] } }
     }
   }
 }
