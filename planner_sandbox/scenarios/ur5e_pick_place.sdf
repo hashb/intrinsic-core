@@ -1,0 +1,79 @@
+<?xml version="1.0"?>
+<!--
+Copyright 2026 Intrinsic Innovation LLC
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    https://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+<!-- UR5e pick and place cell: a box on the pick table, a wall between the
+     pick and the place table. -->
+<sdf version="1.6">
+  <world name="default">
+    <model name="my_robot">
+      <include>
+        <uri>model://intrinsic/robot_definitions/ur/ur5e</uri>
+      </include>
+    </model>
+    <model name="pick_table">
+      <static>true</static>
+      <pose>0.45 0.30 0.05 0 0 0</pose>
+      <link name="link">
+        <visual name="visual">
+          <geometry><box><size>0.30 0.30 0.10</size></box></geometry>
+          <material><diffuse>0.55 0.45 0.35 1</diffuse></material>
+        </visual>
+        <collision name="collision">
+          <geometry><box><size>0.30 0.30 0.10</size></box></geometry>
+        </collision>
+      </link>
+    </model>
+    <model name="place_table">
+      <static>true</static>
+      <pose>0.35 -0.45 0.05 0 0 0</pose>
+      <link name="link">
+        <visual name="visual">
+          <geometry><box><size>0.30 0.30 0.10</size></box></geometry>
+          <material><diffuse>0.55 0.45 0.35 1</diffuse></material>
+        </visual>
+        <collision name="collision">
+          <geometry><box><size>0.30 0.30 0.10</size></box></geometry>
+        </collision>
+      </link>
+    </model>
+    <model name="wall">
+      <static>true</static>
+      <pose>0.45 0.0 0.25 0 0 0</pose>
+      <link name="link">
+        <visual name="visual">
+          <geometry><box><size>0.40 0.04 0.50</size></box></geometry>
+          <material><diffuse>0.6 0.6 0.65 1</diffuse></material>
+        </visual>
+        <collision name="collision">
+          <geometry><box><size>0.40 0.04 0.50</size></box></geometry>
+        </collision>
+      </link>
+    </model>
+    <model name="box">
+      <static>false</static>
+      <pose>0.45 0.30 0.13 0 0 0</pose>
+      <link name="link">
+        <visual name="visual">
+          <geometry><box><size>0.06 0.06 0.06</size></box></geometry>
+          <material><diffuse>0.1 0.4 0.9 1</diffuse></material>
+        </visual>
+        <collision name="collision">
+          <geometry><box><size>0.06 0.06 0.06</size></box></geometry>
+        </collision>
+      </link>
+    </model>
+  </world>
+</sdf>

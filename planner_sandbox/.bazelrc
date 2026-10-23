@@ -1,0 +1,37 @@
+# Copyright 2026 Intrinsic Innovation LLC
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     https://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# Minimal settings for building the planner natively (macOS or Linux) with the
+# host C++ toolchain. Intentionally independent of ../.bazelrc.
+
+common --enable_bzlmod
+common --enable_workspace=false
+
+common --cxxopt=-std=c++20
+common --host_cxxopt=-std=c++20
+common -c opt
+
+# Silence warnings from code we do not own (external repos, including the
+# generated intrinsic_src tree).
+common --per_file_copt=external/.*@-w
+common --host_per_file_copt=external/.*@-w
+
+common --define absl=1
+common --@nlopt//:use_luksan=false
+
+common --incompatible_strict_action_env
+common --repo_env=DO_NOT_TRACK=1
+
+# `bazel build -c dbg` for debugging the planner.
+common:dbg -c dbg --strip=never

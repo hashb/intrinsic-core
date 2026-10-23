@@ -1,0 +1,70 @@
+--- a/intrinsic/kinematics/utils/compute_ik_util.h
++++ b/intrinsic/kinematics/utils/compute_ik_util.h
+@@ -36,7 +36,6 @@
+ #include "intrinsic/world/entity_id.h"
+ #include "intrinsic/world/objects/kinematic_object_internal.h"
+ #include "intrinsic/world/objects/object_world.h"
+-#include "intrinsic/world/objects/object_world_client.h"
+ #include "intrinsic/world/objects/transform_node.h"
+ #include "intrinsic/world/proto/collision_settings.pb.h"
+ #include "intrinsic/world/world.h"
+@@ -222,15 +221,6 @@
+ // error otherwise.
+ absl::Status ValidateCollisionSettings(
+     const intrinsic_proto::world::CollisionSettings& collision_settings);
+-
+-// Converts a the `motion_target` to a Pose3d of the `target_node` frame
+-// relative to the `reference_node` frame. When moving the `target_node` frame
+-// to the returned pose the `motion_target` is reached.
+-absl::StatusOr<Pose3d> CartesianMotionTargetToPose3d(
+-    const world::ObjectWorldClient& object_world,
+-    const intrinsic_proto::motion_planning::CartesianMotionTarget&
+-        motion_target,
+-    world::TransformNode reference_node, world::TransformNode target_node);
+ 
+ // Resolves multiple joint position limit constraints in a given a vector of
+ // Geometric constraints, to provide the most restrictive set of joint
+--- a/intrinsic/kinematics/utils/compute_ik_util.cc
++++ b/intrinsic/kinematics/utils/compute_ik_util.cc
+@@ -78,7 +78,6 @@
+ #include "intrinsic/world/entity_id.h"
+ #include "intrinsic/world/objects/kinematic_object_internal.h"
+ #include "intrinsic/world/objects/object_world.h"
+-#include "intrinsic/world/objects/object_world_client.h"
+ #include "intrinsic/world/objects/object_world_proto_utils.h"
+ #include "intrinsic/world/objects/transform_node.h"
+ #include "intrinsic/world/proto/collision_settings.pb.h"
+@@ -1428,33 +1427,6 @@
+                         collision_settings.minimum_margin()));
+   }
+   return absl::OkStatus();
+-}
+-
+-absl::StatusOr<Pose3d> CartesianMotionTargetToPose3d(
+-    const world::ObjectWorldClient& object_world,
+-    const intrinsic_proto::motion_planning::CartesianMotionTarget&
+-        motion_target,
+-    world::TransformNode reference_node, world::TransformNode target_node) {
+-  INTR_ASSIGN_OR_RETURN(const world::TransformNode tool_node,
+-                        object_world.GetTransformNode(motion_target.tool()));
+-  INTR_ASSIGN_OR_RETURN(const world::TransformNode frame_node,
+-                        object_world.GetTransformNode(motion_target.frame()));
+-
+-  INTR_ASSIGN_OR_RETURN(const Pose3d reference_t_frame,
+-                        object_world.GetTransform(reference_node, frame_node));
+-  INTR_ASSIGN_OR_RETURN(const Pose3d tool_t_target,
+-                        object_world.GetTransform(tool_node, target_node));
+-
+-  // Extract pose properties for constraint conversion into kinematics
+-  // setting.
+-  Pose3d frame_t_tool_target = Pose3d::Identity();
+-  if (motion_target.has_offset()) {
+-    INTR_ASSIGN_OR_RETURN(
+-        frame_t_tool_target,
+-        intrinsic_proto::FromProtoNormalized(motion_target.offset()));
+-  }
+-
+-  return reference_t_frame * frame_t_tool_target * tool_t_target;
+ }
+ 
+ absl::StatusOr<std::vector<eigenmath::VectorXd>> GetCollisionFreeIkSolutions(
