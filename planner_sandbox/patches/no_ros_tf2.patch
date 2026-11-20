@@ -1,0 +1,154 @@
+--- a/intrinsic/world/world.cc
++++ b/intrinsic/world/world.cc
+@@ -45,7 +45,6 @@
+ #include "absl/synchronization/mutex.h"
+ #include "absl/time/clock.h"
+ #include "absl/time/time.h"
+-#include "geometry_msgs/msg/transform_stamped.hpp"
+ #include "google/protobuf/io/coded_stream.h"
+ #include "google/protobuf/io/zero_copy_stream_impl_lite.h"
+ #include "intrinsic/eigenmath/types.h"
+@@ -69,7 +68,6 @@
+ #include "intrinsic/math/proto/transform_stamped.pb.h"
+ #include "intrinsic/math/proto/vector3.pb.h"
+ #include "intrinsic/math/proto_conversion.h"
+-#include "intrinsic/math/tf2_convert_intrinsic.h"
+ #include "intrinsic/util/aggregate_type.h"
+ #include "intrinsic/util/macros.h"
+ #include "intrinsic/util/object_store/object_ref.h"
+@@ -117,10 +115,7 @@
+ #include "intrinsic/world/proto/world_entity.pb.h"
+ #include "intrinsic/world/proto/world_fragment.pb.h"
+ #include "intrinsic/world/world.pb.h"
+-#include "rclcpp/rclcpp.hpp"
+-#include "tf2/include/tf2/exceptions.h"
+ #include "tf2/include/tf2/transform_datatypes.h"
+-#include "tf2_ros/buffer_interface.h"
+ 
+ namespace intrinsic {
+ using ::intrinsic_proto::TFMessage;
+@@ -1775,44 +1770,12 @@
+ absl::Status World::GetTransform(AttachmentEntityId a_handle,
+                                  AttachmentEntityId b_handle, absl::Time t,
+                                  tf2::Stamped<Pose3d>& output) const {
+-  Pose3d intermediate;
+-  geometry_msgs::msg::TransformStamped ros_output;
+-  INTR_ASSIGN_OR_RETURN(std::string source_frame,
+-                        EntityIdToTfFrameName(a_handle));
+-  INTR_ASSIGN_OR_RETURN(std::string target_frame,
+-                        EntityIdToTfFrameName(b_handle));
+-  if (t == absl::UnixEpoch()) {
+-    intermediate = this->GetTransform(a_handle, b_handle);
+-    output.setData(intermediate);
+-    output.frame_id_ = ros_output.header.frame_id;
+-  } else {
+-    int64_t seconds = absl::ToUnixSeconds(t);
+-    int64_t nanos = absl::ToUnixNanos(t - absl::Seconds(seconds));
+-    tf2::TimePoint rt = tf2_ros::fromRclcpp(rclcpp::Time(seconds, nanos));
+-    try {
+-      ros_output = inner_world_->GetBufferCore().lookupTransform(
+-          source_frame, target_frame, rt);
+-    } catch (tf2::ConnectivityException& ex) {
+-      return absl::FailedPreconditionError(ex.what());
+-    } catch (tf2::LookupException& ex) {
+-      return absl::NotFoundError(ex.what());
+-    } catch (tf2::ExtrapolationException& ex) {
+-      return absl::OutOfRangeError(ex.what());
+-    } catch (tf2::InvalidArgumentException& ex) {
+-      return absl::InvalidArgumentError(ex.what());
+-    } catch (tf2::TimeoutException& ex) {
+-      return absl::DeadlineExceededError(ex.what());
+-    } catch (tf2::TransformException& ex) {
+-      return absl::InternalError(ex.what());
+-    }
+-    output.stamp_ = tf2_ros::fromMsg(ros_output.header.stamp);
+-    output.frame_id_ = ros_output.header.frame_id;
+-    // Custom conversion + setData ??
+-    // TODO(tullyfoote) validate Pose3d conversion below
+-    Pose3d output_trasform;
+-    tf2::fromMsg(ros_output.transform, output_trasform);
+-    output.setData(output_trasform);
+-  }
++  // planner_sandbox: the time-indexed tf2 buffer (ROS 2) is not built.
++  if (t != absl::UnixEpoch()) {
++    return absl::UnimplementedError(
++        "Time-indexed transform lookups require tf2 (not in planner_sandbox)");
++  }
++  output.setData(this->GetTransform(a_handle, b_handle));
+   return absl::OkStatus();
+ }
+ 
+@@ -2052,22 +2015,9 @@
+ 
+ absl::Status World::UpdateTransformBuffer(
+     const intrinsic_proto::TFMessage& tf_message) const {
+-  // If an error occurs during this loop, save it to return later, but
+-  // continue updating the buffer with as many frames as possible.
+-  std::string bad_transforms;
+-  for (const intrinsic_proto::TransformStamped& ts_proto :
+-       tf_message.transforms()) {
+-    geometry_msgs::msg::TransformStamped tf_buffer_input = tf2::toMsg(ts_proto);
+-    if (!inner_world_->GetBufferCore().setTransform(tf_buffer_input,
+-                                                    "world_polling")) {
+-      absl::StrAppend(&bad_transforms, ts_proto.header().frame_id(), "->",
+-                      ts_proto.child_frame_id(), " ");
+-    }
+-  }
+-  if (!bad_transforms.empty()) {
+-    return absl::InternalError("Unable to set transform(s): " + bad_transforms);
+-  }
+-  return absl::OkStatus();
++  // planner_sandbox: the time-indexed tf2 buffer (ROS 2) is not built.
++  return absl::UnimplementedError(
++      "UpdateTransformBuffer requires tf2 (not in planner_sandbox)");
+ }
+ 
+ absl::StatusOr<AttachmentEntityId> World::FindCommonAncestor(
+--- a/intrinsic/world/internal/inner_world.h
++++ b/intrinsic/world/internal/inner_world.h
+@@ -31,7 +31,6 @@
+ #include "intrinsic/world/internal/world_acl.h"
+ #include "intrinsic/world/proto/collision_checker_config.pb.h"
+ #include "intrinsic/world/world_acl_spec.h"
+-#include "tf2/include/tf2/buffer_core.h"
+ 
+ namespace intrinsic {
+ namespace world_internal {
+@@ -122,9 +121,6 @@
+   absl::Status CloneFrom(const InnerWorld& other,
+                          const WorldHashSet<EntityId>& subset);
+ 
+-  // Get the tf2 Buffer associated with this world
+-  tf2::BufferCore& GetBufferCore();
+-
+   // Returns the cached collision check results.
+   std::shared_ptr<CollisionCheckCache> GetCachedChecks() const {
+     return cached_checks_;
+@@ -160,9 +156,6 @@
+   // The specs associated with this inner world, it manages the delegation of
+   // acls for this world.
+   WorldACL spec_ = WorldACL(WorldACLSpec());
+-
+-  // Storage for tf2 transform data
+-  ::tf2::BufferCore tf2_buffer_;
+ };
+ 
+ }  // namespace world_internal
+--- a/intrinsic/world/internal/inner_world.cc
++++ b/intrinsic/world/internal/inner_world.cc
+@@ -41,7 +41,6 @@
+ #include "intrinsic/world/internal/world_acl.h"
+ #include "intrinsic/world/world_acl_spec.h"
+ #include "intrinsic/world/world_entity_acl_spec.h"
+-#include "tf2/include/tf2/buffer_core.h"
+ 
+ namespace intrinsic {
+ namespace world_internal {
+@@ -332,7 +331,6 @@
+   return absl::OkStatus();
+ }
+ 
+-tf2::BufferCore& InnerWorld::GetBufferCore() { return tf2_buffer_; }
+ 
+ }  // namespace world_internal
+ }  // namespace intrinsic

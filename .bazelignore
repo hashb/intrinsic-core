@@ -39,3 +39,6 @@ bazel-insrc
 
 # Relocated intrinsic APIs Bzlmod module
 intrinsic_apis/node_modules
+
+# Standalone planner sandbox (its own Bazel module).
+planner_sandbox/

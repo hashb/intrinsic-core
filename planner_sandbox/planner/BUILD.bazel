@@ -1,0 +1,77 @@
+# Copyright 2026 Intrinsic Innovation LLC
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     https://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+load("@com_google_protobuf//bazel:cc_proto_library.bzl", "cc_proto_library")
+load("@com_google_protobuf//bazel:proto_library.bzl", "proto_library")
+load("@rules_cc//cc:cc_binary.bzl", "cc_binary")
+
+package(default_visibility = ["//visibility:public"])
+
+proto_library(
+    name = "scenario_proto",
+    srcs = ["scenario.proto"],
+    deps = [
+        "@intrinsic_src//intrinsic/motion_planning/proto/v1:motion_planner_config_proto",
+        "@intrinsic_src//intrinsic/motion_planning/proto/v1:motion_specification_proto",
+        "@intrinsic_src//intrinsic/motion_planning/proto/v1:robot_specification_proto",
+        "@intrinsic_src//intrinsic/world/proto:world_updates_proto",
+    ],
+)
+
+cc_proto_library(
+    name = "scenario_cc_proto",
+    deps = [":scenario_proto"],
+)
+
+cc_binary(
+    name = "plan_scenario",
+    srcs = ["plan_scenario.cc"],
+    deps = [
+        ":scenario_cc_proto",
+        "@abseil-cpp//absl/flags:flag",
+        "@abseil-cpp//absl/flags:parse",
+        "@abseil-cpp//absl/flags:usage",
+        "@abseil-cpp//absl/hash",
+        "@abseil-cpp//absl/log",
+        "@abseil-cpp//absl/log:flags",
+        "@abseil-cpp//absl/log:globals",
+        "@abseil-cpp//absl/log:initialize",
+        "@abseil-cpp//absl/status",
+        "@abseil-cpp//absl/status:statusor",
+        "@abseil-cpp//absl/strings",
+        "@abseil-cpp//absl/strings:str_format",
+        "@abseil-cpp//absl/time",
+        "@com_github_nlohmann_json//:json",
+        "@com_gitlab_libeigen_eigen//:eigen",
+        "@com_google_protobuf//:protobuf",
+        "@intrinsic_src//intrinsic/eigenmath",
+        "@intrinsic_src//intrinsic/geometry/api:geometry",
+        "@intrinsic_src//intrinsic/geometry/api:renderable_generation",
+        "@intrinsic_src//intrinsic/math:pose3",
+        "@intrinsic_src//intrinsic/motion_planning/motion_planner",
+        "@intrinsic_src//intrinsic/motion_planning/motion_planner:motion_planner_flags",
+        "@intrinsic_src//intrinsic/motion_planning/motion_planner:motion_planner_oss_factory",
+        "@intrinsic_src//intrinsic/motion_planning/proto:motion_planner_service_proto_utils",
+        "@intrinsic_src//intrinsic/util/status:status_macros",
+        "@intrinsic_src//intrinsic/world",
+        "@intrinsic_src//intrinsic/world:entity_id",
+        "@intrinsic_src//intrinsic/world:geometry_types",
+        "@intrinsic_src//intrinsic/world:update_world",
+        "@intrinsic_src//intrinsic/world/component:geometry_component",
+        "@intrinsic_src//intrinsic/world/conversion/sdf:world_from_sdf",
+        "@intrinsic_src//intrinsic/world/gzfile",
+        "@intrinsic_src//intrinsic/world/objects:object_world",
+        "@intrinsic_src//intrinsic/world/proto:world_updates_cc_proto",
+    ],
+)

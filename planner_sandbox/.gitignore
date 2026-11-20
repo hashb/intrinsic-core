@@ -1,0 +1,3 @@
+bazel-*
+# Large intermediate output of tools/gen_manifest.py.
+gen/deps.xml

@@ -1,0 +1,49 @@
+# proto-file: planner/scenario.proto
+# proto-message: planner_sandbox.Scenario
+#
+# The UR5e test world used by the motion planner unit tests: a joint move
+# followed by a linear Cartesian move of the flange.
+
+scene {
+  sdf: "../../intrinsic/skills/apps/test_data/ur5e.sdf"
+  generate_group_ids: true
+  world_updates_files: "../../intrinsic/skills/apps/test_data/ur5e_world_updates.pbtxt"
+}
+
+robot: "my_robot"
+start_joint_positions: [1.27778, -1.58980, 1.81571, -1.78568, -1.57508, -0.28733]
+
+motions {
+  name: "joint_move"
+  motion_specification {
+    motion_segments {
+      motion_type: JOINT
+      target { joint_position { joints: [-0.5, -1.2, 1.6, -1.9, -1.57, 0.3] } }
+    }
+  }
+}
+
+motions {
+  name: "linear_to_pose"
+  motion_specification {
+    motion_segments {
+      motion_type: LINEAR
+      target {
+        cartesian_pose {
+          moving_frame { by_name { frame { object_name: "my_robot" frame_name: "flange" } } }
+          target_frame { by_name { object { object_name: "root" } } }
+          target_frame_offset {
+            position { x: 0.0 y: 0.5 z: 0.3 }
+            orientation { x: -0.2954 y: 0.0010 z: 0.9554 w: -0.0065 }
+          }
+        }
+      }
+      cartesian_limits {
+        max_translational_velocity: 0.6
+        max_translational_acceleration: 2.0
+        max_rotational_velocity: 1.0
+        max_rotational_acceleration: 5.0
+      }
+    }
+  }
+}

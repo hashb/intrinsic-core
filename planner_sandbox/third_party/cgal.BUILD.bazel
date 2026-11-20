@@ -1,0 +1,155 @@
+# Copyright 2026 Intrinsic Innovation LLC
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     https://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+"""BUILD file for CGAL."""
+
+load("@rules_cc//cc:defs.bzl", "cc_library")
+load("@rules_license//rules:license.bzl", "license")
+
+package(
+    default_applicable_licenses = [":license"],
+    default_visibility = ["//visibility:public"],
+)
+
+license(
+    name = "license",
+    package_name = "cgal",
+    license_kinds = [
+        "@rules_license//licenses/generic:by_exception_only",
+    ],
+    license_text = ":LICENSE.md",
+)
+
+# Restricted packages from original cgal.BUILD.bazel
+RESTRICTED_CGAL_PACKAGES = [
+    "Advancing_front_surface_reconstruction",
+    "Algebraic_kernel_d",
+    "Algebraic_kernel_for_circles",
+    "Algebraic_kernel_for_spheres",
+    "Alpha_shapes_2",
+    "Alpha_shapes_3",
+    "Apollonius_graph_2",
+    "Arrangement_on_surface_2",
+    "Barycentric_coordinates_2",
+    "Boolean_set_operations_2",
+    "Bounding_volumes",
+    "CGAL_ipelets",
+    "Circular_kernel_2",
+    "Circular_kernel_3",
+    "Classification",
+    "Combinatorial_map",
+    "Convex_hull_d",
+    "Envelope_2",
+    "Envelope_3",
+    "Generalized_map",
+    "GraphicsView",
+    "Heat_method_3",
+    "Hyperbolic_triangulation_2",
+    "Inscribed_areas",
+    "Interpolation",
+    "Interval_skip_list",
+    "Jet_fitting_3",
+    "Linear_cell_complex",
+    "Matrix_search",
+    "Minkowski_sum_2",
+    "Minkowski_sum_3",
+    "Miscellany",
+    "Nef_2",
+    "Nef_3",
+    "Nef_S2",
+    "NewKernel_d",
+    "OpenNL",
+    "Optimal_bounding_box",
+    "Optimal_transportation_reconstruction_2",
+    "Optimisation_basic",
+    "Partition_2",
+    "Periodic_2_triangulation_2",
+    "Periodic_3_mesh_3",
+    "Periodic_3_triangulation_3",
+    "Periodic_4_hyperbolic_triangulation_2",
+    "Point_set_2",
+    "Point_set_3",
+    "Point_set_processing_3",
+    "Poisson_surface_reconstruction_3",
+    "Polygonal_surface_reconstruction",
+    "Polyline_simplification_2",
+    "Polynomial",
+    "Polytope_distance_d",
+    "Ridges_3",
+    "Scale_space_reconstruction_3",
+    "Segment_Delaunay_graph_2",
+    "Segment_Delaunay_graph_Linf_2",
+    "Set_movable_separability_2",
+    "Shape_detection",
+    "Skin_surface_3",
+    "Snap_rounding_2",
+    "Straight_skeleton_2",
+    "Stream_lines_2",
+    "Surface_mesh_approximation",
+    "Surface_mesh_deformation",
+    "Surface_mesh_parameterization",
+    "Surface_mesh_segmentation",
+    "Surface_mesh_shortest_path",
+    "Surface_mesh_skeletonization",
+    "Surface_mesh_topology",
+    "Tetrahedral_remeshing",
+    "Three",
+    "Triangulation",
+    "Visibility_2",
+    "Voronoi_diagram_2",
+]
+
+cc_library(
+    name = "cgal",
+    hdrs = glob(
+        ["*/include/**/*.h", "*/include/**/*.hpp"],
+        exclude = ["%s/**" % x for x in RESTRICTED_CGAL_PACKAGES],
+        allow_empty = True,
+    ),
+    textual_hdrs = glob(
+        ["*/include/**/*.inc", "*/include/**/*.tcc"],
+        exclude = ["%s/**" % x for x in RESTRICTED_CGAL_PACKAGES],
+        allow_empty = True,
+    ),
+    # Dynamically find all include directories for non-restricted packages
+    includes = glob(
+        ["*/include"],
+        exclude_directories = 0,
+        exclude = ["%s/**" % x for x in RESTRICTED_CGAL_PACKAGES],
+    ),
+    defines = [
+        "CGAL_USE_CORE",
+        "CGAL_HEADER_ONLY",
+        "CGAL_EIGEN3_ENABLED",
+        "CGAL_USE_OPENMESH",
+        "CGAL_DISABLE_GMP",
+        "CGAL_DISABLE_MPFR",
+        "CGAL_LINKED_WITH_TBB",
+        "CGAL_NO_DEPRECATION_WARNINGS",
+        "CGAL_NO_GDB_AUTOLOAD",
+    ],
+    deps = [
+        "@boost.format",
+        "@boost.functional",
+        "@boost.graph",
+        "@boost.heap",
+        "@boost.iterator",
+        "@boost.logic",
+        "@boost.multiprecision",
+        "@com_gitlab_libeigen_eigen//:eigen",
+        "@onetbb//:tbb",
+        "@openmesh",
+    ],
+    visibility = ["//visibility:public"],
+)
